@@ -1,2 +1,4 @@
 .idea/
 .env
+*.csv
+.oura_token.json
