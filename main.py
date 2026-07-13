@@ -21,8 +21,8 @@ default_max_days = 30
 
 FIELDNAMES = [
     'Date', 'Readiness Score', 'Sleep Score', 'Sleep Time (min)',
-    'Deep Sleep (min)', 'REM Sleep (min)', 'Average HRV',
-    'Lowest Resting HR', 'SpO2 (%)', 'Breathing Disturbance Index',
+    'Deep Sleep (min)', 'REM Sleep (min)', 'Lowest Resting HR', 'Average HRV',
+    'SpO2 (%)',
 ]
 
 
@@ -57,11 +57,12 @@ class Exporter:
                 reader = csv.DictReader(f)
                 for row in reader:
                     day = date.fromisoformat(row['Date'])
-                    if day > last_date:
+                    complete = all(row.get(f) for f in FIELDNAMES[1:])
+                    if complete and day > last_date:
                         last_date = day
 
         start_date = last_date + timedelta(days=1)
-        end_date = date.today() - timedelta(days=1)  # today's data is incomplete
+        end_date = date.today()
 
         if start_date > end_date:
             print("No new data to export.")
@@ -181,7 +182,6 @@ class Exporter:
                 'Average HRV': sl.get('average_hrv'),
                 'Lowest Resting HR': sl.get('lowest_heart_rate'),
                 'SpO2 (%)': (sp.get('spo2_percentage') or {}).get('average'),
-                'Breathing Disturbance Index': sl.get('breathing_disturbance_index'),
             })
             current += timedelta(days=1)
 
@@ -213,6 +213,17 @@ if __name__ == '__main__':
     parser = ArgumentParser('Personal Oura Data Exporter')
     parser.add_argument('-f', '--file', default=default_export_file, help=f'Export file (default {default_export_file})')
     parser.add_argument('-n', '--max_days', type=int, default=default_max_days, help=f'Maximum days to export (default {default_max_days})')
+    parser.add_argument('--debug-sleep', action='store_true', help='Print raw sleep API response for the most recent day and exit')
     args = parser.parse_args()
 
-    Exporter(args.file, args.max_days, client_id, client_secret)
+    if args.debug_sleep:
+        from pprint import pprint
+        exp = object.__new__(Exporter)
+        exp.client_id = client_id
+        exp.client_secret = client_secret
+        token = exp._authenticate()
+        start = date.today() - timedelta(days=7)
+        raw = exp._api_get(token, 'sleep', {'start_date': start.isoformat(), 'end_date': date.today().isoformat()})
+        pprint(raw)
+    else:
+        Exporter(args.file, args.max_days, client_id, client_secret)
