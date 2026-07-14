@@ -22,7 +22,7 @@ default_max_days = 30
 FIELDNAMES = [
     'Date', 'Readiness Score', 'Sleep Score', 'Sleep Time (min)',
     'Deep Sleep (min)', 'REM Sleep (min)', 'Lowest Resting HR', 'Average HRV',
-    'SpO2 (%)',
+    'SpO2 (%)', 'Breathing Disturbance Index',
 ]
 
 
@@ -181,7 +181,8 @@ class Exporter:
                 'REM Sleep (min)': mins(sl.get('rem_sleep_duration')),
                 'Average HRV': sl.get('average_hrv'),
                 'Lowest Resting HR': sl.get('lowest_heart_rate'),
-                'SpO2 (%)': (sp.get('spo2_percentage') or {}).get('average'),
+                'SpO2 (%)': sp.get('spo2_percentage', {}).get('average'),
+                'Breathing Disturbance Index': sp.get('breathing_disturbance_index'),
             })
             current += timedelta(days=1)
 
@@ -213,10 +214,10 @@ if __name__ == '__main__':
     parser = ArgumentParser('Personal Oura Data Exporter')
     parser.add_argument('-f', '--file', default=default_export_file, help=f'Export file (default {default_export_file})')
     parser.add_argument('-n', '--max_days', type=int, default=default_max_days, help=f'Maximum days to export (default {default_max_days})')
-    parser.add_argument('--debug-sleep', action='store_true', help='Print raw sleep API response for the most recent day and exit')
+    parser.add_argument('--debug', action='store_true', help='Print raw sleep API response for the most recent day and exit')
     args = parser.parse_args()
 
-    if args.debug_sleep:
+    if args.debug:
         from pprint import pprint
         exp = object.__new__(Exporter)
         exp.client_id = client_id
