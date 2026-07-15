@@ -3,12 +3,13 @@ import json
 import os
 import secrets
 import webbrowser
-from datetime import date, timedelta
-from dotenv import load_dotenv
 from argparse import ArgumentParser
+from datetime import date, timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlencode, urlparse, parse_qs
+
 import requests
+from dotenv import load_dotenv
 
 AUTH_URL = 'https://cloud.ouraring.com/oauth/authorize'
 TOKEN_URL = 'https://api.ouraring.com/oauth/token'
@@ -36,7 +37,8 @@ class _CallbackHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-Type', 'text/html')
             self.end_headers()
-            self.wfile.write(b'<html><body><h1>Authorization successful!</h1><p>You can close this window.</p></body></html>')
+            self.wfile.write(
+                b'<html><body><h1>Authorization successful!</h1><p>You can close this window.</p></body></html>')
         else:
             self.send_response(400)
             self.end_headers()
@@ -46,23 +48,26 @@ class _CallbackHandler(BaseHTTPRequestHandler):
 
 
 class Exporter:
-    def __init__(self, export_file: str, max_days: int, client_id: str, client_secret: str):
+    def __init__(self, export_file: str, client_id: str, client_secret: str, max_days: int = 1,
+                 start_date: date | None = None, end_date: date | None = None):
         self.export_file = export_file
         self.client_id = client_id
         self.client_secret = client_secret
 
-        last_date = date.today() - timedelta(days=max_days)
-        if os.path.exists(export_file):
-            with open(export_file, 'r') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    day = date.fromisoformat(row['Date'])
-                    complete = all(row.get(f) for f in FIELDNAMES[1:])
-                    if complete and day > last_date:
-                        last_date = day
+        if end_date is None:
+            end_date = date.today()
 
-        start_date = last_date + timedelta(days=1)
-        end_date = date.today()
+        if start_date is None:
+            last_date = end_date - timedelta(days=max_days)
+            if os.path.exists(export_file):
+                with open(export_file, 'r') as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        day = date.fromisoformat(row['Date'])
+                        complete = all(row.get(f) for f in FIELDNAMES[1:])
+                        if complete and day > last_date:
+                            last_date = day
+            start_date = last_date + timedelta(days=1)
 
         if start_date > end_date:
             print("No new data to export.")
@@ -152,10 +157,10 @@ class Exporter:
                 continue
             existing = sleep_sessions.get(day)
             prefer = (
-                existing is None
-                or (s.get('type') == 'long_sleep' and existing.get('type') != 'long_sleep')
-                or (s.get('type') == existing.get('type')
-                    and (s.get('total_sleep_duration') or 0) > (existing.get('total_sleep_duration') or 0))
+                    existing is None
+                    or (s.get('type') == 'long_sleep' and existing.get('type') != 'long_sleep')
+                    or (s.get('type') == existing.get('type')
+                        and (s.get('total_sleep_duration') or 0) > (existing.get('total_sleep_duration') or 0))
             )
             if prefer:
                 sleep_sessions[day] = s
@@ -212,13 +217,20 @@ if __name__ == '__main__':
         raise SystemExit("CLIENT_ID and CLIENT_SECRET must be set in .env")
 
     parser = ArgumentParser('Personal Oura Data Exporter')
-    parser.add_argument('-f', '--file', default=default_export_file, help=f'Export file (default {default_export_file})')
-    parser.add_argument('-n', '--max_days', type=int, default=default_max_days, help=f'Maximum days to export (default {default_max_days})')
-    parser.add_argument('--debug', action='store_true', help='Print raw sleep API response for the most recent day and exit')
+    parser.add_argument('-f', '--file', default=default_export_file,
+                        help=f'Export file (default {default_export_file})')
+    parser.add_argument('-n', '--max_days', type=int, default=default_max_days,
+                        help=f'Maximum days to export (default {default_max_days})')
+    parser.add_argument('-s', '--start_date', type=date.fromisoformat,
+                        help=f'Start date in yyyy-mm-hh format (optional)')
+    parser.add_argument('-e', '--end_date', type=date.fromisoformat, help=f'End date in yyyy-mm-hh format (optional)')
+    parser.add_argument('--debug', action='store_true',
+                        help='Print raw sleep API response for the most recent day and exit')
     args = parser.parse_args()
 
     if args.debug:
         from pprint import pprint
+
         exp = object.__new__(Exporter)
         exp.client_id = client_id
         exp.client_secret = client_secret
@@ -227,4 +239,4 @@ if __name__ == '__main__':
         raw = exp._api_get(token, 'sleep', {'start_date': start.isoformat(), 'end_date': date.today().isoformat()})
         pprint(raw)
     else:
-        Exporter(args.file, args.max_days, client_id, client_secret)
+        Exporter(args.file, client_id, client_secret, args.max_days, args.start_date, args.end_date)
