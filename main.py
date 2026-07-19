@@ -17,8 +17,9 @@ API_BASE = 'https://api.ouraring.com/v2/usercollection'
 REDIRECT_URI = 'http://localhost:8080/callback'
 TOKEN_FILE = '.oura_token.json'
 
+api_max_days = 30
 default_export_file = 'oura.csv'
-default_max_days = 30
+default_num_days = 30
 
 FIELDNAMES = [
     'Date', 'Readiness Score', 'Sleep Score', 'Sleep Time (min)',
@@ -48,8 +49,9 @@ class _CallbackHandler(BaseHTTPRequestHandler):
 
 
 class Exporter:
-    def __init__(self, export_file: str, client_id: str, client_secret: str, max_days: int = 1,
-                 start_date: date | None = None, end_date: date | None = None):
+    def __init__(self, export_file: str, client_id: str, client_secret: str,
+                 num_days: int = 0, start_date: date | None = None, end_date: date | None = None,
+                 force: bool = False):
         self.export_file = export_file
         self.client_id = client_id
         self.client_secret = client_secret
@@ -58,8 +60,8 @@ class Exporter:
             end_date = date.today()
 
         if start_date is None:
-            last_date = end_date - timedelta(days=max_days)
-            if os.path.exists(export_file):
+            last_date = end_date - timedelta(days=max(1, num_days))
+            if not force and os.path.exists(export_file):
                 with open(export_file, 'r') as f:
                     reader = csv.DictReader(f)
                     for row in reader:
@@ -74,9 +76,21 @@ class Exporter:
             return
 
         token = self._authenticate()
-        rows = self._fetch_data(token, start_date, end_date)
-        self._write_csv(rows)
-        print(f"Exported {len(rows)} rows to {self.export_file}")
+
+        total_row_count = 0
+        while start_date <= end_date:
+            duration = end_date - start_date
+            if duration.days > api_max_days:
+                call_end_date = start_date + timedelta(days=api_max_days - 1)
+            else:
+                call_end_date = end_date
+            rows = self._fetch_data(token, start_date, call_end_date)
+            total_row_count += len(rows)
+            self._write_csv(rows)
+            print(f"Exported {len(rows)} rows between {start_date} and {call_end_date} to {self.export_file}")
+            start_date = call_end_date + timedelta(days=1)
+        if total_row_count > api_max_days:
+            print(f'Exported {total_row_count} total rows')
 
     def _authenticate(self):
         if os.path.exists(TOKEN_FILE):
@@ -143,7 +157,7 @@ class Exporter:
         return response.json()
 
     def _fetch_data(self, token: dict, start_date: date, end_date: date) -> list[dict]:
-        params = {'start_date': start_date.isoformat(), 'end_date': end_date.isoformat()}
+        params = {'start_date': start_date.isoformat(), 'end_date': (end_date + timedelta(days=1)).isoformat()}
 
         readiness = {r['day']: r for r in self._api_get(token, 'daily_readiness', params).get('data', [])}
         sleep_scores = {r['day']: r for r in self._api_get(token, 'daily_sleep', params).get('data', [])}
@@ -219,11 +233,12 @@ if __name__ == '__main__':
     parser = ArgumentParser('Personal Oura Data Exporter')
     parser.add_argument('-f', '--file', default=default_export_file,
                         help=f'Export file (default {default_export_file})')
-    parser.add_argument('-n', '--max_days', type=int, default=default_max_days,
-                        help=f'Maximum days to export (default {default_max_days})')
+    parser.add_argument('-n', '--num_days', type=int, default=default_num_days,
+                        help=f'Maximum days to export (default {default_num_days}, ignored if start date set)')
     parser.add_argument('-s', '--start_date', type=date.fromisoformat,
                         help=f'Start date in yyyy-mm-hh format (optional)')
     parser.add_argument('-e', '--end_date', type=date.fromisoformat, help=f'End date in yyyy-mm-hh format (optional)')
+    parser.add_argument('--force', action='store_true', help='Replace existing data if present')
     parser.add_argument('--debug', action='store_true',
                         help='Print raw sleep API response for the most recent day and exit')
     args = parser.parse_args()
@@ -239,4 +254,4 @@ if __name__ == '__main__':
         raw = exp._api_get(token, 'sleep', {'start_date': start.isoformat(), 'end_date': date.today().isoformat()})
         pprint(raw)
     else:
-        Exporter(args.file, client_id, client_secret, args.max_days, args.start_date, args.end_date)
+        Exporter(args.file, client_id, client_secret, args.num_days, args.start_date, args.end_date, args.force)
