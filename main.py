@@ -53,12 +53,9 @@ class Exporter:
         self.client_id = client_id
         self.client_secret = client_secret
 
-    def run(self, export_file: str, num_days: int = 0, start_date: date | None = None, end_date: date | None = None,
-            force: bool = False):
-        self.export_file = export_file
-        self.client_id = client_id
-        self.client_secret = client_secret
-
+    def run(self, export_file: str,
+            num_days: int = 0, start_date: date | None = None, end_date: date | None = None,
+            force: bool = False, exclude_empty: bool = False):
         if end_date is None:
             end_date = date.today()
 
@@ -80,20 +77,20 @@ class Exporter:
 
         token = self._authenticate()
 
-        total_row_count = 0
+        rows = []
         while start_date <= end_date:
             duration = end_date - start_date
             if duration.days > api_max_days:
                 call_end_date = start_date + timedelta(days=api_max_days - 1)
             else:
                 call_end_date = end_date
-            rows = self._fetch_data(token, start_date, call_end_date)
-            total_row_count += len(rows)
-            self._write_csv(rows)
-            print(f"Exported {len(rows)} rows between {start_date} and {call_end_date} to {self.export_file}")
+            batch = self._fetch_data(token, start_date, call_end_date, exclude_empty)
+            print(f"Exported {len(batch)} rows between {start_date} and {call_end_date} to {export_file}")
             start_date = call_end_date + timedelta(days=1)
-        if total_row_count > api_max_days:
-            print(f'Exported {total_row_count} total rows')
+            rows.extend(batch)
+        self._write_csv(rows, export_file)
+        if len(rows) > api_max_days:
+            print(f'Exported {len(rows)} total rows to {export_file}')
 
     def _authenticate(self) -> dict:
         if os.path.exists(TOKEN_FILE):
@@ -161,7 +158,7 @@ class Exporter:
         response.raise_for_status()
         return response.json()
 
-    def _fetch_data(self, token: dict, start_date: date, end_date: date) -> list[dict]:
+    def _fetch_data(self, token: dict, start_date: date, end_date: date, exclude_empty: bool) -> list[dict]:
         params = {'start_date': start_date.isoformat(), 'end_date': (end_date + timedelta(days=1)).isoformat()}
 
         readiness = {r['day']: r for r in self._api_get(token, 'daily_readiness', params).get('data', [])}
@@ -196,33 +193,34 @@ class Exporter:
             sl = sleep_sessions.get(day, {})
             sp = spo2.get(day, {})
 
-            rows.append({
-                'Date': day,
-                'Readiness Score': r.get('score'),
-                'Sleep Score': sc.get('score'),
-                'Sleep Time (min)': mins(sl.get('total_sleep_duration')),
-                'Deep Sleep (min)': mins(sl.get('deep_sleep_duration')),
-                'REM Sleep (min)': mins(sl.get('rem_sleep_duration')),
-                'Average HRV': sl.get('average_hrv'),
-                'Lowest Resting HR': sl.get('lowest_heart_rate'),
-                'SpO2 (%)': sp.get('spo2_percentage', {}).get('average'),
-                'Breathing Disturbance Index': sp.get('breathing_disturbance_index'),
-            })
+            if not exclude_empty or r or sc or sl or sp:
+                rows.append({
+                    'Date': day,
+                    'Readiness Score': r.get('score'),
+                    'Sleep Score': sc.get('score'),
+                    'Sleep Time (min)': mins(sl.get('total_sleep_duration')),
+                    'Deep Sleep (min)': mins(sl.get('deep_sleep_duration')),
+                    'REM Sleep (min)': mins(sl.get('rem_sleep_duration')),
+                    'Average HRV': sl.get('average_hrv'),
+                    'Lowest Resting HR': sl.get('lowest_heart_rate'),
+                    'SpO2 (%)': sp.get('spo2_percentage', {}).get('average'),
+                    'Breathing Disturbance Index': sp.get('breathing_disturbance_index'),
+                })
             current += timedelta(days=1)
 
         return rows
 
-    def _write_csv(self, new_rows: list[dict]):
+    def _write_csv(self, new_rows: list[dict], export_file: str):
         new_dates = {r['Date'] for r in new_rows}
         existing_rows = []
-        if os.path.exists(self.export_file):
-            with open(self.export_file, 'r') as f:
+        if os.path.exists(export_file):
+            with open(export_file, 'r') as f:
                 for row in csv.DictReader(f):
                     if row['Date'] not in new_dates:
                         existing_rows.append(row)
 
         all_rows = sorted(existing_rows + new_rows, key=lambda r: r['Date'])
-        with open(self.export_file, 'w', newline='') as f:
+        with open(export_file, 'w', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=FIELDNAMES, extrasaction='ignore')
             writer.writeheader()
             writer.writerows(all_rows)
@@ -231,16 +229,16 @@ class Exporter:
         from pprint import pprint
 
         token = self._authenticate()
-        start = date.today() - timedelta(days=7)
+        start = date.today() - timedelta(days=1)
         raw = self._api_get(token, 'sleep', {'start_date': start.isoformat(), 'end_date': date.today().isoformat()})
         pprint(raw)
 
 
 if __name__ == '__main__':
     load_dotenv()
-    client_id = os.getenv('CLIENT_ID')
-    client_secret = os.getenv('CLIENT_SECRET')
-    if not client_id or not client_secret:
+    env_client_id = os.getenv('CLIENT_ID')
+    env_client_secret = os.getenv('CLIENT_SECRET')
+    if not env_client_id or not env_client_secret:
         raise SystemExit("CLIENT_ID and CLIENT_SECRET must be set in .env")
 
     parser = ArgumentParser('Personal Oura Data Exporter')
@@ -252,14 +250,15 @@ if __name__ == '__main__':
                         help=f'Start date in yyyy-mm-dd format (optional)')
     parser.add_argument('-e', '--end_date', type=date.fromisoformat,
                         help=f'End date in yyyy-mm-dd format (optional)')
-    parser.add_argument('--force', action='store_true',
-                        help='Replace existing data if present')
+    parser.add_argument('--exclude_empty', action='store_true', help=f'Exclude empty rows')
+    parser.add_argument('--force', action='store_true', help='Replace existing data if present')
     parser.add_argument('--debug', action='store_true',
                         help='Print raw sleep API response for the most recent day and exit')
     args = parser.parse_args()
 
-    exporter = Exporter(client_id, client_secret)
+    exporter = Exporter(env_client_id, env_client_secret)
+
     if args.debug:
         exporter.debug()
     else:
-        exporter.run(args.file, args.num_days, args.start_date, args.end_date, args.force)
+        exporter.run(args.file, args.num_days, args.start_date, args.end_date, args.force, args.exclude_empty)
