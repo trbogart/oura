@@ -249,9 +249,9 @@ if __name__ == '__main__':
     parser.add_argument('-n', '--num_days', type=int, default=default_num_days,
                         help=f'Maximum days to export (default {default_num_days}, ignored if start date set)')
     parser.add_argument('-s', '--start_date', type=date.fromisoformat,
-                        help=f'Start date in yyyy-mm-hh format (optional)')
+                        help=f'Start date in yyyy-mm-dd format (optional)')
     parser.add_argument('-e', '--end_date', type=date.fromisoformat,
-                        help=f'End date in yyyy-mm-hh format (optional)')
+                        help=f'End date in yyyy-mm-dd format (optional)')
     parser.add_argument('--force', action='store_true',
                         help='Replace existing data if present')
     parser.add_argument('--debug', action='store_true',
