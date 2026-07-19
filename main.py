@@ -49,9 +49,12 @@ class _CallbackHandler(BaseHTTPRequestHandler):
 
 
 class Exporter:
-    def __init__(self, export_file: str, client_id: str, client_secret: str,
-                 num_days: int = 0, start_date: date | None = None, end_date: date | None = None,
-                 force: bool = False):
+    def __init__(self, client_id: str, client_secret: str):
+        self.client_id = client_id
+        self.client_secret = client_secret
+
+    def run(self, export_file: str, num_days: int = 0, start_date: date | None = None, end_date: date | None = None,
+            force: bool = False):
         self.export_file = export_file
         self.client_id = client_id
         self.client_secret = client_secret
@@ -92,7 +95,7 @@ class Exporter:
         if total_row_count > api_max_days:
             print(f'Exported {total_row_count} total rows')
 
-    def _authenticate(self):
+    def _authenticate(self) -> dict:
         if os.path.exists(TOKEN_FILE):
             with open(TOKEN_FILE, 'r') as f:
                 token = json.load(f)
@@ -102,7 +105,7 @@ class Exporter:
                     return refreshed
         return self._oauth_flow()
 
-    def _oauth_flow(self):
+    def _oauth_flow(self) -> dict:
         state = secrets.token_urlsafe(16)
         auth_url = AUTH_URL + '?' + urlencode({
             'response_type': 'code',
@@ -115,6 +118,7 @@ class Exporter:
         webbrowser.open(auth_url)
 
         _CallbackHandler.code = None
+        # noinspection PyTypeChecker
         server = HTTPServer(('localhost', 8080), _CallbackHandler)
         while _CallbackHandler.code is None:
             server.handle_request()
@@ -131,7 +135,8 @@ class Exporter:
         self._save_token(token)
         return token
 
-    def _refresh_token(self, refresh_token: str):
+    # noinspection PyBroadException
+    def _refresh_token(self, refresh_token: str) -> dict:
         try:
             response = requests.post(TOKEN_URL, data={
                 'grant_type': 'refresh_token',
@@ -144,7 +149,7 @@ class Exporter:
             self._save_token(token)
             return token
         except Exception:
-            return None
+            return {}
 
     def _save_token(self, token: dict):
         with open(TOKEN_FILE, 'w') as f:
@@ -222,6 +227,14 @@ class Exporter:
             writer.writeheader()
             writer.writerows(all_rows)
 
+    def debug(self):
+        from pprint import pprint
+
+        token = self._authenticate()
+        start = date.today() - timedelta(days=7)
+        raw = self._api_get(token, 'sleep', {'start_date': start.isoformat(), 'end_date': date.today().isoformat()})
+        pprint(raw)
+
 
 if __name__ == '__main__':
     load_dotenv()
@@ -237,21 +250,16 @@ if __name__ == '__main__':
                         help=f'Maximum days to export (default {default_num_days}, ignored if start date set)')
     parser.add_argument('-s', '--start_date', type=date.fromisoformat,
                         help=f'Start date in yyyy-mm-hh format (optional)')
-    parser.add_argument('-e', '--end_date', type=date.fromisoformat, help=f'End date in yyyy-mm-hh format (optional)')
-    parser.add_argument('--force', action='store_true', help='Replace existing data if present')
+    parser.add_argument('-e', '--end_date', type=date.fromisoformat,
+                        help=f'End date in yyyy-mm-hh format (optional)')
+    parser.add_argument('--force', action='store_true',
+                        help='Replace existing data if present')
     parser.add_argument('--debug', action='store_true',
                         help='Print raw sleep API response for the most recent day and exit')
     args = parser.parse_args()
 
+    exporter = Exporter(client_id, client_secret)
     if args.debug:
-        from pprint import pprint
-
-        exp = object.__new__(Exporter)
-        exp.client_id = client_id
-        exp.client_secret = client_secret
-        token = exp._authenticate()
-        start = date.today() - timedelta(days=7)
-        raw = exp._api_get(token, 'sleep', {'start_date': start.isoformat(), 'end_date': date.today().isoformat()})
-        pprint(raw)
+        exporter.debug()
     else:
-        Exporter(args.file, client_id, client_secret, args.num_days, args.start_date, args.end_date, args.force)
+        exporter.run(args.file, args.num_days, args.start_date, args.end_date, args.force)
