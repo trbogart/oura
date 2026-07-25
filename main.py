@@ -250,7 +250,7 @@ if __name__ == '__main__':
                         help=f'Start date in yyyy-mm-dd format (optional)')
     parser.add_argument('-e', '--end_date', type=date.fromisoformat,
                         help=f'End date in yyyy-mm-dd format (optional)')
-    parser.add_argument('--exclude_empty', action='store_true', help=f'Exclude empty rows')
+    parser.add_argument('--exclude_empty', action='store_true', help='Exclude empty rows')
     parser.add_argument('--force', action='store_true', help='Replace existing data if present')
     parser.add_argument('--debug', action='store_true',
                         help='Print raw sleep API response for the most recent day and exit')
