@@ -91,6 +91,10 @@ class Exporter:
         self._write_csv(rows, export_file)
         if len(rows) > api_max_days:
             print(f'Exported {len(rows)} total rows to {export_file}')
+        if rows:
+            print('Latest day:')
+            for key, value in rows[-1].items():
+                print(f'  {key}: {value}')
 
     def _authenticate(self) -> dict:
         if os.path.exists(TOKEN_FILE):
