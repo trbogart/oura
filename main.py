@@ -205,8 +205,8 @@ class Exporter:
                     'Sleep Time (min)': mins(sl.get('total_sleep_duration')),
                     'Deep Sleep (min)': mins(sl.get('deep_sleep_duration')),
                     'REM Sleep (min)': mins(sl.get('rem_sleep_duration')),
-                    'Average HRV': sl.get('average_hrv'),
                     'Lowest Resting HR': sl.get('lowest_heart_rate'),
+                    'Average HRV': sl.get('average_hrv'),
                     'SpO2 (%)': sp.get('spo2_percentage', {}).get('average'),
                     'Breathing Disturbance Index': sp.get('breathing_disturbance_index'),
                 })
