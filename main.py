@@ -22,7 +22,7 @@ default_export_file = 'oura.csv'
 default_num_days = 30
 
 FIELDNAMES = [
-    'Date', 'Readiness Score', 'Sleep Score', 'Sleep Time (min)',
+    'Date', 'Readiness Score', 'Sleep Score', 'Activity Score', 'Sleep Time (min)',
     'Deep Sleep (min)', 'REM Sleep (min)', 'Lowest Resting HR', 'Average HRV',
     'SpO2 (%)', 'Breathing Disturbance Index',
 ]
@@ -168,6 +168,7 @@ class Exporter:
         readiness = {r['day']: r for r in self._api_get(token, 'daily_readiness', params).get('data', [])}
         sleep_scores = {r['day']: r for r in self._api_get(token, 'daily_sleep', params).get('data', [])}
         spo2 = {r['day']: r for r in self._api_get(token, 'daily_spo2', params).get('data', [])}
+        activity = {r['day']: r for r in self._api_get(token, 'daily_activity', params).get('data', [])}
 
         # Pick the longest sleep session per day (type=long_sleep preferred)
         sleep_sessions: dict[str, dict] = {}
@@ -196,12 +197,14 @@ class Exporter:
             sc = sleep_scores.get(day, {})
             sl = sleep_sessions.get(day, {})
             sp = spo2.get(day, {})
+            act = activity.get(day, {})
 
             if not exclude_empty or r or sc or sl or sp:
                 rows.append({
                     'Date': day,
                     'Readiness Score': r.get('score'),
                     'Sleep Score': sc.get('score'),
+                    'Activity Score': act.get('score'),
                     'Sleep Time (min)': mins(sl.get('total_sleep_duration')),
                     'Deep Sleep (min)': mins(sl.get('deep_sleep_duration')),
                     'REM Sleep (min)': mins(sl.get('rem_sleep_duration')),
