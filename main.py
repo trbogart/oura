@@ -85,7 +85,7 @@ class Exporter:
             else:
                 call_end_date = end_date
             batch = self._fetch_data(token, start_date, call_end_date, exclude_empty)
-            print(f"Exported {len(batch)} rows between {start_date} and {call_end_date} to {export_file}")
+            print(f"{len(batch)} rows between {start_date} and {call_end_date}")
             start_date = call_end_date + timedelta(days=1)
             rows.extend(batch)
         self._write_csv(rows, export_file)
