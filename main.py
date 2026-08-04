@@ -85,12 +85,14 @@ class Exporter:
             else:
                 call_end_date = end_date
             batch = self._fetch_data(token, start_date, call_end_date, exclude_empty)
-            print(f"{len(batch)} rows between {start_date} and {call_end_date}")
+            if len(batch) > 1:
+                print(f"Adding {len(batch)} rows between {start_date} and {call_end_date}")
+            elif len(batch) == 1:
+                print(f'Adding 1 row on {start_date}')
             start_date = call_end_date + timedelta(days=1)
             rows.extend(batch)
         self._write_csv(rows, export_file)
-        if len(rows) > api_max_days:
-            print(f'Exported {len(rows)} total rows to {export_file}')
+        print(f'Exported {len(rows)} total rows to {export_file}')
         if rows:
             print('Latest day:')
             for key, value in rows[-1].items():
