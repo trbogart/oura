@@ -22,9 +22,9 @@ default_export_file = 'oura.csv'
 default_num_days = 30
 
 FIELDNAMES = [
-    'Date', 'Readiness Score', 'Sleep Score', 'Activity Score', 'Sleep Time (min)',
-    'Deep Sleep (min)', 'REM Sleep (min)', 'Lowest Resting HR', 'Average HRV',
-    'SpO2 (%)', 'Breathing Disturbance Index',
+    'Date', 'Readiness Score', 'Sleep Score', 'Lowest Resting HR', 'Average HRV',
+    'SpO2 (%)', 'Breathing Disturbance Index', 'Activity Score', 'Sleep Time (min)',
+    'Deep Sleep (min)', 'REM Sleep (min)',
 ]
 
 
