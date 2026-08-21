@@ -21,10 +21,23 @@ api_max_days = 30
 default_export_file = 'oura.csv'
 default_num_days = 30
 
+DATE = 'Date'
+READINESS_SCORE = 'Readiness Score'
+SLEEP_SCORE = 'Sleep Score'
+RHR = 'Lowest Resting HR'
+HRV = 'Average HRV'
+SPO2 = 'SpO2 (%)'
+BDI = 'Breathing Disturbance Index'
+ACTIVITY_SCORE = 'Activity Score'
+TIME_IN_BED = 'Time in Bed (min)'
+SLEEP_TIME = 'Sleep Time (min)'
+DEEP_SLEEP = 'Deep Sleep (min)'
+REM_SLEEP = 'REM Sleep (min)'
+SLEEP_EFFICIENCY = 'Sleep Efficiency (%)'
+
 FIELDNAMES = [
-    'Date', 'Readiness Score', 'Sleep Score', 'Lowest Resting HR', 'Average HRV',
-    'SpO2 (%)', 'Breathing Disturbance Index', 'Activity Score', 'Sleep Time (min)',
-    'Deep Sleep (min)', 'REM Sleep (min)',
+    DATE, READINESS_SCORE, SLEEP_SCORE, RHR, HRV, SPO2, BDI,
+    ACTIVITY_SCORE, TIME_IN_BED, SLEEP_TIME, DEEP_SLEEP, REM_SLEEP, SLEEP_EFFICIENCY
 ]
 
 
@@ -65,7 +78,7 @@ class Exporter:
                 with open(export_file, 'r') as f:
                     reader = csv.DictReader(f)
                     for row in reader:
-                        day = date.fromisoformat(row['Date'])
+                        day = date.fromisoformat(row[DATE])
                         complete = all(row.get(f) for f in FIELDNAMES[1:])
                         if complete and day > last_date:
                             last_date = day
@@ -203,32 +216,34 @@ class Exporter:
 
             if not exclude_empty or r or sc or sl or sp:
                 rows.append({
-                    'Date': day,
-                    'Readiness Score': r.get('score'),
-                    'Sleep Score': sc.get('score'),
-                    'Activity Score': act.get('score'),
-                    'Sleep Time (min)': mins(sl.get('total_sleep_duration')),
-                    'Deep Sleep (min)': mins(sl.get('deep_sleep_duration')),
-                    'REM Sleep (min)': mins(sl.get('rem_sleep_duration')),
-                    'Lowest Resting HR': sl.get('lowest_heart_rate'),
-                    'Average HRV': sl.get('average_hrv'),
-                    'SpO2 (%)': sp.get('spo2_percentage', {}).get('average'),
-                    'Breathing Disturbance Index': sp.get('breathing_disturbance_index'),
+                    DATE: day,
+                    READINESS_SCORE: r.get('score'),
+                    SLEEP_SCORE: sc.get('score'),
+                    RHR: sl.get('lowest_heart_rate'),
+                    HRV: sl.get('average_hrv'),
+                    SPO2: sp.get('spo2_percentage', {}).get('average'),
+                    BDI: sp.get('breathing_disturbance_index'),
+                    ACTIVITY_SCORE: act.get('score'),
+                    TIME_IN_BED: mins(sl.get('time_in_bed')),
+                    SLEEP_TIME: mins(sl.get('total_sleep_duration')),
+                    DEEP_SLEEP: mins(sl.get('deep_sleep_duration')),
+                    REM_SLEEP: mins(sl.get('rem_sleep_duration')),
+                    SLEEP_EFFICIENCY: sl.get('efficiency'),
                 })
             current += timedelta(days=1)
 
         return rows
 
     def _write_csv(self, new_rows: list[dict], export_file: str):
-        new_dates = {r['Date'] for r in new_rows}
+        new_dates = {r[DATE] for r in new_rows}
         existing_rows = []
         if os.path.exists(export_file):
             with open(export_file, 'r') as f:
                 for row in csv.DictReader(f):
-                    if row['Date'] not in new_dates:
+                    if row[DATE] not in new_dates:
                         existing_rows.append(row)
 
-        all_rows = sorted(existing_rows + new_rows, key=lambda r: r['Date'])
+        all_rows = sorted(existing_rows + new_rows, key=lambda r: r[DATE])
         with open(export_file, 'w', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=FIELDNAMES, extrasaction='ignore')
             writer.writeheader()
