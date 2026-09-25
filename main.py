@@ -24,7 +24,7 @@ default_num_days = 30
 DATE = 'Date'
 READINESS_SCORE = 'Readiness Score'
 SLEEP_SCORE = 'Sleep Score'
-RESTFULNESS = 'Restfulness'
+RESTLESS = 'Restless Periods'
 RHR = 'Lowest Resting HR'
 HRV = 'Average HRV'
 SPO2 = 'SpO2 (%)'
@@ -35,11 +35,13 @@ TIME_IN_BED = 'Time in Bed (min)'
 SLEEP_TIME = 'Sleep Time (min)'
 DEEP_SLEEP = 'Deep Sleep (min)'
 REM_SLEEP = 'REM Sleep (min)'
+LATENCY = 'Latency (min)'
+AWAKE = 'Awake Time (min)'
 SLEEP_EFFICIENCY = 'Sleep Efficiency (%)'
 
 FIELDNAMES = [
-    DATE, READINESS_SCORE, SLEEP_SCORE, RHR, HRV, SPO2, BDI, RESTFULNESS, RESP_RATE,
-    ACTIVITY_SCORE, TIME_IN_BED, SLEEP_TIME, DEEP_SLEEP, REM_SLEEP, SLEEP_EFFICIENCY
+    DATE, READINESS_SCORE, SLEEP_SCORE, RHR, HRV, SPO2, BDI, RESTLESS, RESP_RATE, ACTIVITY_SCORE,
+    TIME_IN_BED, SLEEP_TIME, DEEP_SLEEP, REM_SLEEP, LATENCY, AWAKE, SLEEP_EFFICIENCY
 ]
 
 
@@ -226,12 +228,14 @@ class Exporter:
                     SPO2: sp.get('spo2_percentage', {}).get('average'),
                     RESP_RATE: sl.get('average_breath'),
                     BDI: sp.get('breathing_disturbance_index'),
-                    RESTFULNESS: sc.get('contributors', {}).get('restfulness'),
+                    RESTLESS: sl.get('restless_periods'),
                     ACTIVITY_SCORE: act.get('score'),
                     TIME_IN_BED: mins(sl.get('time_in_bed')),
                     SLEEP_TIME: mins(sl.get('total_sleep_duration')),
                     DEEP_SLEEP: mins(sl.get('deep_sleep_duration')),
                     REM_SLEEP: mins(sl.get('rem_sleep_duration')),
+                    AWAKE: mins(sl.get('awake_time')),
+                    LATENCY: mins(sl.get('latency')),
                     SLEEP_EFFICIENCY: sl.get('efficiency'),
                 })
             current += timedelta(days=1)
