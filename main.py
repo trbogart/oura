@@ -211,6 +211,9 @@ class Exporter:
             hours, minutes = divmod(round(seconds / 60), 60)
             return f'{hours}:{minutes:02}'
 
+        def _format_float(value):
+            return f'{value:0.3f}' if value is not None else None
+
         rows = []
         current = start_date
         while current <= end_date:
@@ -228,8 +231,8 @@ class Exporter:
                     SLEEP_SCORE: sc.get('score'),
                     RHR: sl.get('lowest_heart_rate'),
                     HRV: sl.get('average_hrv'),
-                    SPO2: sp.get('spo2_percentage', {}).get('average'),
-                    RESP_RATE: sl.get('average_breath'),
+                    SPO2: _format_float(sp.get('spo2_percentage', {}).get('average')),
+                    RESP_RATE: _format_float(sl.get('average_breath')),
                     BDI: sp.get('breathing_disturbance_index'),
                     RESTLESS: sl.get('restless_periods'),
                     ACTIVITY_SCORE: act.get('score'),
