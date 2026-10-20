@@ -7,13 +7,20 @@ Exports the following fields to a CSV file:
 - Date
 - Readiness Score
 - Sleep Score
-- Sleep Time (min)
-- Deep Sleep (min)
-- REM Sleep (min)
 - Lowest Resting HR
 - Average HRV
 - SpO2 (%)
 - Breathing Disturbance Index
+- Sleep Efficiency (%)
+- Restless Periods
+- Respiratory Rate
+- Activity Score
+- Time in Bed (min)
+- Sleep Time (min)
+- Latency (min)
+- Awake Time (min)
+- Deep Sleep (min)
+- REM Sleep (min)
 
 Dates are written as mm/dd/yyyy; existing CSV dates may be
 either yyyy-mm-dd or mm/dd/yyyy.
@@ -28,6 +35,8 @@ This behavior can be overridden using
 - `-s` or `--start_date` - sets the start date in yyyy-mm-dd or mm/dd/yyyy format (overrides `--num_days`)
 - `-e` or `--end_date` - sets the inclusive end date in yyyy-mm-dd or mm/dd/yyyy format (default today)
 - `--force` - ignore existing data
+- `--exclude_empty` - skip days with no data
+- `--debug` - print the raw sleep API response for the most recent day and exit
 
 ## Instructions
 
