@@ -31,17 +31,17 @@ SPO2 = 'SpO2 (%)'
 BDI = 'Breathing Disturbance Index'
 RESP_RATE = 'Respiratory Rate'
 ACTIVITY_SCORE = 'Activity Score'
-TIME_IN_BED = 'Time in Bed (h:mm)'
-SLEEP_TIME = 'Sleep Time (h:mm)'
-DEEP_SLEEP = 'Deep Sleep (h:mm)'
-REM_SLEEP = 'REM Sleep (h:mm)'
-LATENCY = 'Latency (h:mm)'
-AWAKE = 'Awake Time (h:mm)'
+TIME_IN_BED = 'Time in Bed (min)'
+SLEEP_TIME = 'Sleep Time (min)'
+DEEP_SLEEP = 'Deep Sleep (min)'
+REM_SLEEP = 'REM Sleep (min)'
+LATENCY = 'Latency (min)'
+AWAKE = 'Awake Time (min)'
 SLEEP_EFFICIENCY = 'Sleep Efficiency (%)'
 
 FIELDNAMES = [
-    DATE, READINESS_SCORE, SLEEP_SCORE, RHR, HRV, SPO2, BDI, RESTLESS, RESP_RATE, ACTIVITY_SCORE,
-    TIME_IN_BED, SLEEP_TIME, DEEP_SLEEP, REM_SLEEP, LATENCY, AWAKE, SLEEP_EFFICIENCY
+    DATE, READINESS_SCORE, SLEEP_SCORE, RHR, HRV, SPO2, BDI, SLEEP_EFFICIENCY,
+    RESTLESS, RESP_RATE, ACTIVITY_SCORE, TIME_IN_BED, SLEEP_TIME, LATENCY, AWAKE, DEEP_SLEEP, REM_SLEEP
 ]
 
 
@@ -208,8 +208,7 @@ class Exporter:
         def duration(seconds):
             if seconds is None:
                 return None
-            hours, minutes = divmod(round(seconds / 60), 60)
-            return f'{hours}:{minutes:02}'
+            return round(seconds / 60)
 
         def _format_float(value):
             return f'{value:0.3f}' if value is not None else None
@@ -234,15 +233,15 @@ class Exporter:
                     SPO2: _format_float(sp.get('spo2_percentage', {}).get('average')),
                     RESP_RATE: _format_float(sl.get('average_breath')),
                     BDI: sp.get('breathing_disturbance_index'),
+                    AWAKE: duration(sl.get('awake_time')),
+                    SLEEP_EFFICIENCY: sl.get('efficiency'),
                     RESTLESS: sl.get('restless_periods'),
                     ACTIVITY_SCORE: act.get('score'),
                     TIME_IN_BED: duration(sl.get('time_in_bed')),
                     SLEEP_TIME: duration(sl.get('total_sleep_duration')),
                     DEEP_SLEEP: duration(sl.get('deep_sleep_duration')),
                     REM_SLEEP: duration(sl.get('rem_sleep_duration')),
-                    AWAKE: duration(sl.get('awake_time')),
                     LATENCY: duration(sl.get('latency')),
-                    SLEEP_EFFICIENCY: sl.get('efficiency'),
                 })
             current += timedelta(days=1)
 
