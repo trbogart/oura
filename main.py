@@ -4,7 +4,7 @@ import os
 import secrets
 import webbrowser
 from argparse import ArgumentParser
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlencode, urlparse, parse_qs
 
@@ -45,6 +45,18 @@ FIELDNAMES = [
 ]
 
 
+def parse_date(value: str) -> date:
+    """Parse a date in either yyyy-mm-dd or mm/dd/yyyy format."""
+    try:
+        return datetime.strptime(value, '%m/%d/%Y').date()
+    except ValueError:
+        return date.fromisoformat(value)
+
+
+def format_date(d: date) -> str:
+    return d.strftime('%m/%d/%Y')
+
+
 class _CallbackHandler(BaseHTTPRequestHandler):
     code = None
 
@@ -82,7 +94,7 @@ class Exporter:
                 with open(export_file, 'r') as f:
                     reader = csv.DictReader(f)
                     for row in reader:
-                        day = date.fromisoformat(row[DATE])
+                        day = parse_date(row[DATE])
                         complete = all(row.get(f) for f in FIELDNAMES[1:])
                         if complete and day > last_date:
                             last_date = day
@@ -171,11 +183,13 @@ class Exporter:
         except Exception:
             return {}
 
-    def _save_token(self, token: dict):
+    @staticmethod
+    def _save_token(token: dict):
         with open(TOKEN_FILE, 'w') as f:
             json.dump(token, f)
 
-    def _api_get(self, token: dict, endpoint: str, params: dict) -> dict:
+    @staticmethod
+    def _api_get(token: dict, endpoint: str, params: dict) -> dict:
         headers = {'Authorization': f"Bearer {token['access_token']}"}
         response = requests.get(f"{API_BASE}/{endpoint}", headers=headers, params=params)
         response.raise_for_status()
@@ -225,7 +239,7 @@ class Exporter:
 
             if not exclude_empty or r or sc or sl or sp:
                 rows.append({
-                    DATE: day,
+                    DATE: format_date(current),
                     READINESS_SCORE: r.get('score'),
                     SLEEP_SCORE: sc.get('score'),
                     RHR: sl.get('lowest_heart_rate'),
@@ -247,16 +261,19 @@ class Exporter:
 
         return rows
 
-    def _write_csv(self, new_rows: list[dict], export_file: str):
-        new_dates = {r[DATE] for r in new_rows}
+    @staticmethod
+    def _write_csv(new_rows: list[dict], export_file: str):
+        new_dates = {parse_date(r[DATE]) for r in new_rows}
         existing_rows = []
         if os.path.exists(export_file):
             with open(export_file, 'r') as f:
                 for row in csv.DictReader(f):
-                    if row[DATE] not in new_dates:
+                    day = parse_date(row[DATE])
+                    if day not in new_dates:
+                        row[DATE] = format_date(day)
                         existing_rows.append(row)
 
-        all_rows = sorted(existing_rows + new_rows, key=lambda r: r[DATE])
+        all_rows = sorted(existing_rows + new_rows, key=lambda r: parse_date(r[DATE]))
         with open(export_file, 'w', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=FIELDNAMES, extrasaction='ignore')
             writer.writeheader()
@@ -283,10 +300,10 @@ if __name__ == '__main__':
                         help=f'Export file (default {default_export_file})')
     parser.add_argument('-n', '--num_days', type=int, default=default_num_days,
                         help=f'Maximum days to export (default {default_num_days}, ignored if start date set)')
-    parser.add_argument('-s', '--start_date', type=date.fromisoformat,
-                        help=f'Start date in yyyy-mm-dd format (optional)')
-    parser.add_argument('-e', '--end_date', type=date.fromisoformat,
-                        help=f'End date in yyyy-mm-dd format (optional)')
+    parser.add_argument('-s', '--start_date', type=parse_date,
+                        help=f'Start date in yyyy-mm-dd or mm/dd/yyyy format (optional)')
+    parser.add_argument('-e', '--end_date', type=parse_date,
+                        help=f'End date in yyyy-mm-dd or mm/dd/yyyy format (optional)')
     parser.add_argument('--exclude_empty', action='store_true', help='Exclude empty rows')
     parser.add_argument('--force', action='store_true', help='Replace existing data if present')
     parser.add_argument('--debug', action='store_true',
