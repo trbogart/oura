@@ -26,6 +26,7 @@ READINESS_SCORE = 'Readiness Score'
 SLEEP_SCORE = 'Sleep Score'
 RESTLESS = 'Restless Periods'
 RHR = 'Lowest Resting HR'
+AVG_RHR = 'Average Resting HR'
 HRV = 'Average HRV'
 SPO2 = 'SpO2 (%)'
 BDI = 'Breathing Disturbance Index'
@@ -40,7 +41,7 @@ AWAKE = 'Awake Time (min)'
 SLEEP_EFFICIENCY = 'Sleep Efficiency (%)'
 
 FIELDNAMES = [
-    DATE, READINESS_SCORE, SLEEP_SCORE, RHR, HRV, SPO2, BDI, SLEEP_EFFICIENCY,
+    DATE, READINESS_SCORE, SLEEP_SCORE, RHR, HRV, SPO2, SLEEP_EFFICIENCY, BDI, AVG_RHR,
     RESTLESS, RESP_RATE, ACTIVITY_SCORE, TIME_IN_BED, SLEEP_TIME, LATENCY, AWAKE, DEEP_SLEEP, REM_SLEEP
 ]
 
@@ -224,9 +225,6 @@ class Exporter:
                 return None
             return round(seconds / 60)
 
-        def _format_float(value):
-            return f'{value:0.3f}' if value is not None else None
-
         rows = []
         current = start_date
         while current <= end_date:
@@ -243,9 +241,10 @@ class Exporter:
                     READINESS_SCORE: r.get('score'),
                     SLEEP_SCORE: sc.get('score'),
                     RHR: sl.get('lowest_heart_rate'),
+                    AVG_RHR: sl.get('average_heart_rate'),
                     HRV: sl.get('average_hrv'),
-                    SPO2: _format_float(sp.get('spo2_percentage', {}).get('average')),
-                    RESP_RATE: _format_float(sl.get('average_breath')),
+                    SPO2: sp.get('spo2_percentage', {}).get('average'),
+                    RESP_RATE: sl.get('average_breath'),
                     BDI: sp.get('breathing_disturbance_index'),
                     AWAKE: duration(sl.get('awake_time')),
                     SLEEP_EFFICIENCY: sl.get('efficiency'),
