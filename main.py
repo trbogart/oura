@@ -39,10 +39,11 @@ REM_SLEEP = 'REM Sleep (min)'
 LATENCY = 'Latency (min)'
 AWAKE = 'Awake Time (min)'
 SLEEP_EFFICIENCY = 'Sleep Efficiency (%)'
+TEMP = 'Temperature Deviation'
 
 FIELDNAMES = [
     DATE, READINESS_SCORE, SLEEP_SCORE, RHR, HRV, SPO2, SLEEP_EFFICIENCY, BDI, AVG_RHR,
-    RESTLESS, RESP_RATE, ACTIVITY_SCORE, TIME_IN_BED, SLEEP_TIME, LATENCY, AWAKE, DEEP_SLEEP, REM_SLEEP
+    RESTLESS, RESP_RATE, ACTIVITY_SCORE, TIME_IN_BED, SLEEP_TIME, LATENCY, AWAKE, DEEP_SLEEP, REM_SLEEP, TEMP
 ]
 
 
@@ -255,6 +256,7 @@ class Exporter:
                     DEEP_SLEEP: duration(sl.get('deep_sleep_duration')),
                     REM_SLEEP: duration(sl.get('rem_sleep_duration')),
                     LATENCY: duration(sl.get('latency')),
+                    TEMP: r.get('temperature_deviation')
                 })
             current += timedelta(days=1)
 
