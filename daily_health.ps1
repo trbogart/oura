@@ -20,9 +20,9 @@ $ouraDir = $PSScriptRoot
 $datalogDir = Join-Path (Split-Path $PSScriptRoot -Parent) 'copy_datalog'
 
 $jobs = @(
+    @{ Name = 'Oura export';     Dir = $ouraDir;    Script = 'main.py' }
     @{ Name = 'OSCAR copy';      Dir = $datalogDir; Script = 'copy_oscar.py' }
     @{ Name = 'SomnoTrace copy'; Dir = $datalogDir; Script = 'copy_somnotrace.py' }
-    @{ Name = 'Oura export';     Dir = $ouraDir;    Script = 'main.py' }
 )
 
 function Test-LaunchedFromExplorer {
@@ -70,6 +70,7 @@ if (-not (Test-Path $python)) {
 Write-Host ''
 if ($failed.Count -eq 0) {
     Write-Host 'All jobs completed successfully.' -ForegroundColor Green
+    Invoke-Item .\oura.csv
     $exitCode = 0
 } else {
     Write-Host "Failed: $($failed -join ', ')" -ForegroundColor Red
