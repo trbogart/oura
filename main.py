@@ -6,6 +6,7 @@ import webbrowser
 from argparse import ArgumentParser
 from datetime import date, datetime, timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from numbers import Number
 from urllib.parse import urlencode, urlparse, parse_qs
 
 import requests
@@ -236,6 +237,13 @@ class Exporter:
             sp = spo2.get(day, {})
             act = activity.get(day, {})
 
+            total_sleep = sl.get('total_sleep_duration')
+            time_in_bed = sl.get('time_in_bed')
+            if isinstance(total_sleep, Number) and isinstance(time_in_bed, Number):
+                sleep_eff = round(100 * total_sleep / time_in_bed, 1)
+            else:
+                sleep_eff = None
+
             if not exclude_empty or r or sc or sl or sp:
                 rows.append({
                     DATE: format_date(current),
@@ -248,7 +256,7 @@ class Exporter:
                     RESP_RATE: sl.get('average_breath'),
                     BDI: sp.get('breathing_disturbance_index'),
                     AWAKE: duration(sl.get('awake_time')),
-                    SLEEP_EFFICIENCY: sl.get('efficiency'),
+                    SLEEP_EFFICIENCY: sleep_eff,
                     RESTLESS: sl.get('restless_periods'),
                     ACTIVITY_SCORE: act.get('score'),
                     TIME_IN_BED: duration(sl.get('time_in_bed')),
