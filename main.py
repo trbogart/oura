@@ -25,7 +25,7 @@ default_num_days = 30
 DATE = 'Date'
 READINESS_SCORE = 'Readiness Score'
 SLEEP_SCORE = 'Sleep Score'
-RESTLESS = 'Restless Periods'
+RESTLESS = 'Restless Periods Index'
 RHR = 'Lowest Resting HR'
 AVG_RHR = 'Average Resting HR'
 HRV = 'Average HRV'
@@ -43,8 +43,8 @@ SLEEP_EFFICIENCY = 'Sleep Efficiency (%)'
 TEMP = 'Temperature Deviation'
 
 FIELDNAMES = [
-    DATE, READINESS_SCORE, SLEEP_SCORE, RHR, HRV, SPO2, SLEEP_EFFICIENCY, BDI, AVG_RHR,
-    RESTLESS, RESP_RATE, ACTIVITY_SCORE, TIME_IN_BED, SLEEP_TIME, LATENCY, AWAKE, DEEP_SLEEP, REM_SLEEP, TEMP
+    DATE, READINESS_SCORE, SLEEP_SCORE, RHR, HRV, SPO2, SLEEP_EFFICIENCY, BDI, RESTLESS,
+    AVG_RHR, RESP_RATE, ACTIVITY_SCORE, TIME_IN_BED, SLEEP_TIME, LATENCY, AWAKE, DEEP_SLEEP, REM_SLEEP, TEMP
 ]
 
 
@@ -237,12 +237,15 @@ class Exporter:
             sp = spo2.get(day, {})
             act = activity.get(day, {})
 
+            sleep_eff = None
+            rpi = None
             total_sleep = sl.get('total_sleep_duration')
             time_in_bed = sl.get('time_in_bed')
             if isinstance(total_sleep, Number) and isinstance(time_in_bed, Number):
                 sleep_eff = round(100 * total_sleep / time_in_bed, 1)
-            else:
-                sleep_eff = None
+                restless_periods = sl.get('restless_periods')
+                if restless_periods is not None:
+                    rpi = round(restless_periods / (time_in_bed / 3600), 2) # periods per hour
 
             if not exclude_empty or r or sc or sl or sp:
                 rows.append({
@@ -257,7 +260,7 @@ class Exporter:
                     BDI: sp.get('breathing_disturbance_index'),
                     AWAKE: duration(sl.get('awake_time')),
                     SLEEP_EFFICIENCY: sleep_eff,
-                    RESTLESS: sl.get('restless_periods'),
+                    RESTLESS: rpi,
                     ACTIVITY_SCORE: act.get('score'),
                     TIME_IN_BED: duration(sl.get('time_in_bed')),
                     SLEEP_TIME: duration(sl.get('total_sleep_duration')),
