@@ -9,6 +9,9 @@
     own folder so relative paths (.env, oura.csv, token file) resolve correctly.
     A failure in one script does not stop the others.
 
+    If the Oura export writes at least one row, oura.csv is opened right away,
+    without waiting for the remaining jobs.
+
     When launched from File Explorer (double-click on daily_health.cmd, or
     "Run with PowerShell"), the window waits for a key press before closing.
 #>
@@ -20,7 +23,7 @@ $ouraDir = $PSScriptRoot
 $datalogDir = Join-Path (Split-Path $PSScriptRoot -Parent) 'copy_datalog'
 
 $jobs = @(
-    @{ Name = 'Oura export';     Dir = $ouraDir;    Script = 'main.py' }
+    @{ Name = 'Oura export';     Dir = $ouraDir;    Script = 'main.py'; OpenOnExport = (Join-Path $ouraDir 'oura.csv') }
     @{ Name = 'OSCAR copy';      Dir = $datalogDir; Script = 'copy_oscar.py' }
     @{ Name = 'SomnoTrace copy'; Dir = $datalogDir; Script = 'copy_somnotrace.py' }
 )
@@ -53,10 +56,16 @@ if (-not (Test-Path $python)) {
         Write-Host "=== $($job.Name): $($job.Script) ===" -ForegroundColor Cyan
         Push-Location $job.Dir
         try {
-            & $python $job.Script
+            # -u: unbuffered so output appears live while it is also captured.
+            & $python -u $job.Script | Tee-Object -Variable output | Out-Host
             if ($LASTEXITCODE -ne 0) {
                 Write-Host "$($job.Name) failed (exit code $LASTEXITCODE)" -ForegroundColor Red
                 $failed += $job.Name
+            } elseif ($job.OpenOnExport) {
+                $exported = $output | Select-String -Pattern 'Exported (\d+) total rows' | Select-Object -Last 1
+                if ($exported -and [int]$exported.Matches[0].Groups[1].Value -ge 1) {
+                    Invoke-Item $job.OpenOnExport
+                }
             }
         } catch {
             Write-Host "$($job.Name) failed: $_" -ForegroundColor Red
@@ -70,7 +79,6 @@ if (-not (Test-Path $python)) {
 Write-Host ''
 if ($failed.Count -eq 0) {
     Write-Host 'All jobs completed successfully.' -ForegroundColor Green
-    Invoke-Item .\oura.csv
     $exitCode = 0
 } else {
     Write-Host "Failed: $($failed -join ', ')" -ForegroundColor Red
